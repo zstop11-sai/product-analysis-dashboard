@@ -1,4 +1,6 @@
 import os
+from pathlib import Path
+
 import streamlit as st
 # This brings in a tool called Streamlit that helps us create a website/app interface without needing to know web design. Think of it like a template builder.
 
@@ -11,14 +13,26 @@ from openai import OpenAI
 from dotenv import load_dotenv
 # This imports a tool that reads secret information (like passwords/API keys) from a hidden file. It's like opening a safe to get your credentials.
 
-# Load OPENROUTER_API_KEY from .env
-load_dotenv()
-# This line actually opens that safe and loads all the secret information into memory so we can use it.
+# Load OPENROUTER_API_KEY from Streamlit secrets first (deployment), then .env (local)
+try:
+    api_key = st.secrets["OPENROUTER_API_KEY"]
+except Exception:
+    api_key = None
+
+if not api_key:
+    env_path = Path(__file__).resolve().parent / ".env"
+    load_dotenv(env_path)
+    api_key = os.getenv("OPENROUTER_API_KEY") or os.getenv("OPENAI_API_KEY")
+
+if not api_key:
+    raise RuntimeError(
+        "Missing API key. Add OPENROUTER_API_KEY to Streamlit secrets or your local .env file."
+    )
 
 # OpenRouter client — OpenAI-compatible, routes to 300+ models
 client = OpenAI(
     base_url="https://openrouter.ai/api/v1",
-    api_key=os.getenv("OPENROUTER_API_KEY"),
+    api_key=api_key,
 )
 # This creates a connection to OpenRouter (which forwards requests to the AI model).
 
