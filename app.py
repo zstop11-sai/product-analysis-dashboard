@@ -13,28 +13,32 @@ from openai import OpenAI
 from dotenv import load_dotenv
 # This imports a tool that reads secret information (like passwords/API keys) from a hidden file. It's like opening a safe to get your credentials.
 
-# Load OPENROUTER_API_KEY from Streamlit secrets first (deployment), then .env (local)
-try:
-    api_key = st.secrets["OPENROUTER_API_KEY"]
-except Exception:
-    api_key = None
+def get_api_key():
+    # Load OPENROUTER_API_KEY from Streamlit secrets first (deployment), then .env (local)
+    try:
+        api_key = st.secrets["OPENROUTER_API_KEY"]
+    except Exception:
+        api_key = None
 
-if not api_key:
-    env_path = Path(__file__).resolve().parent / ".env"
-    load_dotenv(env_path)
-    api_key = os.getenv("OPENROUTER_API_KEY") or os.getenv("OPENAI_API_KEY")
+    if not api_key:
+        env_path = Path(__file__).resolve().parent / ".env"
+        load_dotenv(env_path)
+        api_key = os.getenv("OPENROUTER_API_KEY") or os.getenv("OPENAI_API_KEY")
 
-if not api_key:
-    raise RuntimeError(
-        "Missing API key. Add OPENROUTER_API_KEY to Streamlit secrets or your local .env file."
+    return api_key
+
+
+API_KEY = get_api_key()
+
+if API_KEY:
+    # OpenRouter client — OpenAI-compatible, routes to 300+ models
+    client = OpenAI(
+        base_url="https://openrouter.ai/api/v1",
+        api_key=API_KEY,
     )
-
-# OpenRouter client — OpenAI-compatible, routes to 300+ models
-client = OpenAI(
-    base_url="https://openrouter.ai/api/v1",
-    api_key=api_key,
-)
-# This creates a connection to OpenRouter (which forwards requests to the AI model).
+    # This creates a connection to OpenRouter (which forwards requests to the AI model).
+else:
+    client = None
 
 MODEL = "openai/gpt-4.1-mini"
 # OpenRouter model ID: provider/model-name format.
@@ -44,6 +48,11 @@ def analyze_product(product_name):
     # This creates a function (a reusable block of code) called "analyze_product" that takes one input: the product name.
     """Single agent: one OpenAI call that returns a full product-analysis report."""
     # This is a comment explaining what this function does - it analyzes a product using one AI call.
+
+    if not API_KEY:
+        raise RuntimeError(
+            "Missing API key. Add OPENROUTER_API_KEY to Streamlit secrets or your local .env file."
+        )
 
     current_date = datetime.now().strftime("%b %Y")
     # This gets today's date and formats it to show just the month and year (like "Jun 2026").
@@ -114,6 +123,10 @@ def main():
     # This creates the main function - the starting point of the app.
     st.title("Product Analysis Dashboard")
     # Display a big title at the top of the webpage that says "Product Analysis Dashboard"
+
+    if not API_KEY:
+        st.error("Missing API key. Add OPENROUTER_API_KEY in Streamlit Cloud secrets or your local .env file.")
+        st.stop()
 
     # Light custom CSS for readability
     st.markdown(
